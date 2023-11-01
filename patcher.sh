@@ -14,6 +14,7 @@ SYSTEMWIDE=false
 APPIMAGE=false
 PATCHOPENSSL=false
 PREFIX=""
+SSLDIR=$(realpath "./data/files_to_copy")
 
 # Patching internal variables
 # Since people are likely to double click on this, I need a way to get the script_dir
@@ -164,8 +165,7 @@ patch_am2r ()
 			# After replacing it with libcurl, versioning is ignored, and the binary starts just fine.
 			echo "Patching deprecated OpenSSL dependency with libcurl..."
 			patchelf "$GAMEDIR/runner" \
-				--replace-needed "libcrypto.so.1.0.0" "libcurl.so" \
-				--replace-needed "libssl.so.1.0.0" "libcurl.so"
+				--set-rpath "$SSLDIR"
 		fi
 
 		# An environment variable needs to be set on Mesa to avoid a race
