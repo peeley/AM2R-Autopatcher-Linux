@@ -158,14 +158,16 @@ patch_am2r ()
 		' \;
 
 		if [ "$PATCHOPENSSL" = true ]; then
-			# GameMaker games (like AMR2) link to OpenSSL 1.0.0, which is outdated and insecure.
-			# When attempting to link to newer versions, an error is raised at runtime claiming it cannot find
-			# the outdated version of OpenSSL, even though it has been patched to link to the newer version.
-			# After replacing it with libcurl, versioning is ignored, and the binary starts just fine.
-			echo "Patching deprecated OpenSSL dependency with libcurl..."
+			# GameMaker games (like AMR2) link to OpenSSL 1.0.0, which is
+			# outdated and insecure.
+			# This patches the game to use OpenSSL 1.1, which is somewhat less
+			# insecure and more commonly available on distro package
+			# repositories.
+			echo "Patching deprecated OpenSSL dependency to OpenSSL 1.1..."
 			patchelf "$GAMEDIR/runner" \
-				--replace-needed "libcrypto.so.1.0.0" "libcurl.so" \
-				--replace-needed "libssl.so.1.0.0" "libcurl.so"
+				--replace-needed "libcrypto.so.1.0.0" "libcrypto.so.1.1" \
+				--replace-needed "libssl.so.1.0.0" "libssl.so.1.1" \
+
 		fi
 
 		# An environment variable needs to be set on Mesa to avoid a race
@@ -178,6 +180,15 @@ patch_am2r ()
 
 		chmod +x "$GAMEDIR/runner" "$GAMEDIR/.runner-unwrapped"
 
+		if [ "$PATCHOPENSSL" = true ]; then
+			# In order to use OpenSSL 1.1, we need to patch the
+			# `.gnu.version_r` section of the ELF binary and flag the OpenSSL
+			# symbol version requirements as "weak". This allows the ELF loader
+			# to use OpenSSL 1.1 without complaining or crashing.
+			echo "Patching version requirements for OpenSSL..."
+			echo ".runner-unwrapped sha1sum: $(sha1sum $GAMEDIR/.runner-unwrapped)"
+			xdelta3 -dfs "$GAMEDIR/.runner-unwrapped" "$SCRIPT_DIR/data/weaken-ssl-requirement.xdelta" "$GAMEDIR/.runner-unwrapped"
+		fi
 
 		# Remove old lang folder
 		rm -R "$GAMEDIR"/lang
